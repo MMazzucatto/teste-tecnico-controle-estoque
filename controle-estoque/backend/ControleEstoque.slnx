@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ControleEstoque.Api/ControleEstoque.Api.csproj" />
+  <Project Path="ControleEstoque.Tests/ControleEstoque.Tests.csproj" />
+</Solution>
