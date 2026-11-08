@@ -190,3 +190,5 @@ C:\Users\muril\OneDrive\Área de Trabalho\projetos e testes\teste-tecnico-contro
 C:\Users\muril\OneDrive\Área de Trabalho\projetos e testes\teste-tecnico-controle-estoque\controle-estoque\backend\ControleEstoque.Api\bin\Debug\net10.0\runtimes\win-arm64\native\e_sqlite3.dll
 C:\Users\muril\OneDrive\Área de Trabalho\projetos e testes\teste-tecnico-controle-estoque\controle-estoque\backend\ControleEstoque.Api\bin\Debug\net10.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\muril\OneDrive\Área de Trabalho\projetos e testes\teste-tecnico-controle-estoque\controle-estoque\backend\ControleEstoque.Api\bin\Debug\net10.0\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\muril\OneDrive\Área de Trabalho\projetos e testes\teste-tecnico-controle-estoque\controle-estoque\backend\ControleEstoque.Api\bin\Debug\net10.0\Scalar.AspNetCore.dll
+C:\Users\muril\OneDrive\Área de Trabalho\projetos e testes\teste-tecnico-controle-estoque\controle-estoque\backend\ControleEstoque.Api\obj\Debug\net10.0\ControleEstoque.Api.sourcelink.json
