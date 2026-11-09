@@ -1,0 +1,302 @@
+@model IEnumerable<ControleEstoque.Api.Models.ProdutoEstoque>
+@{
+    ViewData["Title"] = "Controle de Estoque";
+}
+
+@* Gera o token antiforgery. O JS lê esse valor e envia junto com os dados dos POSTs *@
+@Html.AntiForgeryToken()
+
+<div id="alerta" class="alert d-none" role="alert"></div>
+
+@if (ViewBag.Erro != null)
+{
+    <div class="alert alert-danger">@ViewBag.Erro</div>
+}
+
+<!-- Operações -->
+<div class="mb-4">
+    <h4>Movimentar estoque</h4>
+    <div class="d-flex gap-2 mb-2">
+        <input id="idOperacao" type="number" min="1" class="form-control" placeholder="Id do produto" />
+        <input id="quantidade" type="number" min="1" class="form-control" placeholder="Quantidade" />
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-success" onclick="Entrada()">Entrada</button>
+        <button type="button" class="btn btn-danger" onclick="Saida()">Saída</button>
+        <button type="button" class="btn btn-warning" onclick="Reservar()">Reservar</button>
+        <button type="button" class="btn btn-secondary" onclick="Bloquear()">Bloquear</button>
+        <button type="button" class="btn btn-outline-warning" onclick="LiberarReserva()">Liberar reserva</button>
+        <button type="button" class="btn btn-outline-secondary" onclick="LiberarBloqueio()">Liberar bloqueio</button>
+    </div>
+</div>
+
+<!-- Consulta -->
+<div class="mb-4">
+    <h4>Consultar produto</h4>
+    <div class="d-flex gap-2">
+        <input id="idConsulta" type="number" min="1" class="form-control" placeholder="Id do produto" />
+        <button type="button" class="btn btn-primary" onclick="ConsultarProduto()">Consultar</button>
+        <button type="button" class="btn btn-outline-primary" onclick="MostrarTodos()">Mostrar todos</button>
+    </div>
+</div>
+
+<!-- Tabela de produtos -->
+<div class="mb-4">
+    <h4>Produtos</h4>
+
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Nome</th>
+                <th>Quantidade</th>
+                <th>Reservado</th>
+                <th>Bloqueado</th>
+                <th>Disponível</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="corpoTabela">
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="7" class="text-muted">Nenhum produto cadastrado.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.Id</td>
+                        <td>@item.Nome</td>
+                        <td>@item.Quantidade</td>
+                        <td>@item.Reservado</td>
+                        <td>@item.Bloqueado</td>
+                        <td><strong>@item.Disponivel</strong></td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selecionarProduto(@item.Id)">
+                                Selecionar
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    let linhasOriginais = $("#corpoTabela").html();
+
+
+    function mostrarAlerta(mensagem, sucesso) {
+        let classe = sucesso ? "alert alert-success" : "alert alert-danger";
+        $("#alerta").attr("class", classe).text(mensagem);
+    }
+
+    function esconderAlerta() {
+        $("#alerta").attr("class", "alert d-none");
+    }
+
+    function selecionarProduto(id) {
+        $("#idConsulta").val(id);
+        $("#idOperacao").val(id);
+        $("#quantidade").focus();
+    }
+
+    function criarLinha(p) {
+        let linha = $("<tr>");
+
+        linha.append($("<td>").text(p.id));
+        linha.append($("<td>").text(p.nome));
+        linha.append($("<td>").text(p.quantidade));
+        linha.append($("<td>").text(p.reservado));
+        linha.append($("<td>").text(p.bloqueado));
+        linha.append($("<td>").append($("<strong>").text(p.disponivel)));
+
+        let botao = $("<button>")
+            .attr("type", "button")
+            .addClass("btn btn-sm btn-outline-primary")
+            .text("Selecionar")
+            .on("click", function () {
+                selecionarProduto(p.id);
+            });
+
+        linha.append($("<td>").append(botao));
+
+        return linha;
+    }
+
+
+    function ConsultarProduto() {
+
+        let url = '@Url.Action("ConsultarProduto")';
+        let id = $("#idConsulta").val();
+
+        var retorno = function (json) {
+
+            if (!json.sucesso) {
+                mostrarAlerta(json.mensagem, false);
+                return;
+            }
+
+            // Troca todas as linhas da tabela só pelo produto consultado
+            $("#corpoTabela").empty().append(criarLinha(json.produto));
+            esconderAlerta();
+        };
+
+        $.get(url, { id: id }, retorno, 'json')
+            .fail(function () {
+                mostrarAlerta("Não foi possível consultar o produto.", false);
+            });
+    }
+
+
+    function MostrarTodos() {
+        $("#corpoTabela").html(linhasOriginais);
+        $("#idConsulta").val("");
+        esconderAlerta();
+    }
+
+
+    function Entrada() {
+
+        let url = '@Url.Action("IncluirProduto")';
+        let id = $("#idOperacao").val();
+        let quantidade = $("#quantidade").val();
+        let token = $('input[name="__RequestVerificationToken"]').val();
+
+        var retorno = function (json) {
+
+            mostrarAlerta(json.mensagem, json.sucesso);
+
+            if (json.sucesso) {
+                setTimeout(function () { location.reload(); }, 1000);
+            }
+        };
+
+        $.post(url, { id: id, quantidade: quantidade, __RequestVerificationToken: token }, retorno, 'json')
+            .fail(function () {
+                mostrarAlerta("Não foi possível registrar a entrada.", false);
+            });
+    }
+
+
+    function Saida() {
+
+        let url = '@Url.Action("RetirarProduto")';
+        let id = $("#idOperacao").val();
+        let quantidade = $("#quantidade").val();
+        let token = $('input[name="__RequestVerificationToken"]').val();
+
+        var retorno = function (json) {
+
+            mostrarAlerta(json.mensagem, json.sucesso);
+
+            if (json.sucesso) {
+                setTimeout(function () { location.reload(); }, 1000);
+            }
+        };
+
+        $.post(url, { id: id, quantidade: quantidade, __RequestVerificationToken: token }, retorno, 'json')
+            .fail(function () {
+                mostrarAlerta("Não foi possível registrar a saída.", false);
+            });
+    }
+
+
+    function Reservar() {
+
+        let url = '@Url.Action("ReservarProduto")';
+        let id = $("#idOperacao").val();
+        let quantidade = $("#quantidade").val();
+        let token = $('input[name="__RequestVerificationToken"]').val();
+
+        var retorno = function (json) {
+
+            mostrarAlerta(json.mensagem, json.sucesso);
+
+            if (json.sucesso) {
+                setTimeout(function () { location.reload(); }, 1000);
+            }
+        };
+
+        $.post(url, { id: id, quantidade: quantidade, __RequestVerificationToken: token }, retorno, 'json')
+            .fail(function () {
+                mostrarAlerta("Não foi possível criar a reserva.", false);
+            });
+    }
+
+
+    function Bloquear() {
+
+        let url = '@Url.Action("BloquearProduto")';
+        let id = $("#idOperacao").val();
+        let quantidade = $("#quantidade").val();
+        let token = $('input[name="__RequestVerificationToken"]').val();
+
+        var retorno = function (json) {
+
+            mostrarAlerta(json.mensagem, json.sucesso);
+
+            if (json.sucesso) {
+                setTimeout(function () { location.reload(); }, 1000);
+            }
+        };
+
+        $.post(url, { id: id, quantidade: quantidade, __RequestVerificationToken: token }, retorno, 'json')
+            .fail(function () {
+                mostrarAlerta("Não foi possível criar o bloqueio.", false);
+            });
+    }
+
+
+    function LiberarReserva() {
+
+        let url = '@Url.Action("LiberarReserva")';
+        let id = $("#idOperacao").val();
+        let quantidade = $("#quantidade").val();
+        let token = $('input[name="__RequestVerificationToken"]').val();
+
+        var retorno = function (json) {
+
+            mostrarAlerta(json.mensagem, json.sucesso);
+
+            if (json.sucesso) {
+                setTimeout(function () { location.reload(); }, 1000);
+            }
+        };
+
+        $.post(url, { id: id, quantidade: quantidade, __RequestVerificationToken: token }, retorno, 'json')
+            .fail(function () {
+                mostrarAlerta("Não foi possível liberar a reserva.", false);
+            });
+    }
+
+
+    function LiberarBloqueio() {
+
+        let url = '@Url.Action("LiberarBloqueio")';
+        let id = $("#idOperacao").val();
+        let quantidade = $("#quantidade").val();
+        let token = $('input[name="__RequestVerificationToken"]').val();
+
+        var retorno = function (json) {
+
+            mostrarAlerta(json.mensagem, json.sucesso);
+
+            if (json.sucesso) {
+                setTimeout(function () { location.reload(); }, 1000);
+            }
+        };
+
+        $.post(url, { id: id, quantidade: quantidade, __RequestVerificationToken: token }, retorno, 'json')
+            .fail(function () {
+                mostrarAlerta("Não foi possível liberar o bloqueio.", false);
+            });
+    }
+</script>

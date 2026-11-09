@@ -1,0 +1,13 @@
+@ControleEstoque.Api_HostAddress = http://localhost:5281
+
+### Abre a tela e consulta inicial do estoque
+GET {{ControleEstoque.Api_HostAddress}}/Estoque/Entrada
+
+### Consulta um produto por ID
+GET {{ControleEstoque.Api_HostAddress}}/Estoque/ConsultarProduto?id=1
+
+# As operações abaixo são POSTs convencionais do EstoqueController:
+# /Estoque/IncluirProduto, /Estoque/RetirarProduto, /Estoque/ReservarProduto,
+# /Estoque/BloquearProduto, /Estoque/LiberarReserva e /Estoque/LiberarBloqueio.
+# Elas exigem o token antiforgery __RequestVerificationToken gerado pela tela.
+# Para testá-las, use os botões da interface ou envie o token junto ao formulário.

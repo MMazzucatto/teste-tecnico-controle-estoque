@@ -1,0 +1,219 @@
+# Controle de Estoque
+
+## Visão geral
+
+Este projeto foi desenvolvido como solução para o case prático de engenharia de software referente ao controle de estoque. A ideia central é gerenciar produtos com controle de quantidade total, disponível, reservada e bloqueada, preservando consistência e evitando operações inválidas.
+
+## Informações do candidato
+
+- Nome: Murilo Ventorini Mazzucatto
+- GitHub / repositório: https://github.com/MMazzucatto/teste-tecnico-controle-estoque.git
+- Data: 09/11/2026
+- Stack principal: C# + ASP.NET Core + SQL Server
+- Inteligência artificial utilizada: Claude Free (apoio ao código) e Copilot Free (documentação)
+
+## Objetivo da solução
+
+Atender ao requisito de manter o estoque consistente em operações de:
+
+- entrada de produtos;
+- saída de produtos;
+- reserva de quantidade;
+- bloqueio de quantidade;
+- liberação de reserva/bloqueio;
+- consulta do status do produto.
+
+## Arquitetura e estrutura adotada
+
+A solução foi organizada de forma simples e direta para o cenário proposto:
+
+- `app/ControleEstoque.Api/Controllers/EstoqueController.cs` — endpoints e regras de API;
+- `app/ControleEstoque.Api/models/ProdutoEstoque.cs` — modelo de domínio do produto;
+- `app/ControleEstoque.Api/appsettings.json` — configuração do banco de dados;
+- `app/ControleEstoque.Tests/` — testes automatizados do comportamento principal.
+
+Arquitetura escolhida:
+
+- API ASP.NET Core MVC para expor as operações;
+- acesso direto ao SQL Server por comandos SQL parametrizados;
+- modelo de domínio enxuto para representar o estoque;
+- foco em consistência e validação de regras de negócio em vez de uma arquitetura mais pesada.
+
+## Principais decisões técnicas
+
+1. Uso de SQL Server como camada de persistência
+   - Mantém a solução próxima ao cenário de estoque real e permite persistência simples.
+
+2. Validação de quantidade antes da operação
+   - Quantidade menor ou igual a zero gera exceção e impede operação inválida.
+
+3. Consistência calculada pela disponibilidade
+   - A disponibilidade é tratada como `Quantidade - Reservado - Bloqueado`.
+
+4. Operações condicionais em banco
+   - Saída, reserva e bloqueio utilizam `WHERE` com validações para garantir que a operação não exceda a disponibilidade.
+
+5. Tratamento explícito de erros
+   - Mensagens de erro orientam o cliente sobre o motivo da falha, como estoque insuficiente, produto inexistente ou liberacao inexistente.
+
+## Premissas e regras de negócio consideradas
+
+- Cada produto possui identificador único.
+- A quantidade total representa o estoque bruto do item.
+- Reserva e bloqueio reduzem a quantidade disponível, mas não a quantidade total.
+- O estoque não pode ficar em estado inconsistente.
+- Operações com quantidade zero ou negativa são rejeitadas.
+- Em operações de saída, reserva ou bloqueio, a quantidade solicitada não pode exceder a disponibilidade disponível no momento.
+- Liberação só pode ocorrer quando a reserva ou bloqueio realmente existir.
+
+## Limitações conhecidas
+
+- A solução atual é adequada ao escopo do case, mas não foi construída como sistema de produção completo.
+- Não há autenticação, autorização, versionamento de estoque por usuário, auditoria detalhada ou controle transacional avançado.
+- O banco de dados é configurado por connection string local, então o ambiente precisa ter o SQL Server/SQL Express disponível.
+- A operação de liberação de múltiplos itens por lote e rastreio de histórico de movimento ainda não foi implementada.
+
+## Instruções de execução
+
+### Pré-requisitos
+
+- .NET SDK 10.0 ou superior
+- SQL Server (ou SQL Server Express local)
+- Banco de dados com tabela `Produto` seguindo o modelo esperado
+
+### Configuração
+
+Edite o arquivo `app/ControleEstoque.Api/appsettings.json` com a connection string correta do ambiente:
+
+```json
+{
+  "ConnectionStrings": {
+    "Default": "Server=localhost\\SQLEXPRESS;Database=ControleEstoque;Trusted_Connection=True;TrustServerCertificate=True;"
+  }
+}
+```
+
+### Criação do banco de dados
+
+Execute o script abaixo no SQL Server Management Studio ou em outra ferramenta compatível com SQL Server:
+
+```sql
+IF DB_ID('ControleEstoque') IS NULL
+    CREATE DATABASE ControleEstoque;
+GO
+
+USE ControleEstoque;
+GO
+
+IF OBJECT_ID('dbo.Produto', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Produto (
+        Id         INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        Nome       NVARCHAR(100) NOT NULL,
+        Quantidade INT NOT NULL CONSTRAINT DF_Produto_Quantidade DEFAULT 0,
+        Reservado  INT NOT NULL CONSTRAINT DF_Produto_Reservado DEFAULT 0,
+        Bloqueado  INT NOT NULL CONSTRAINT DF_Produto_Bloqueado DEFAULT 0,
+        CONSTRAINT CK_Produto_Saldo CHECK (
+            Quantidade >= 0
+            AND Reservado >= 0
+            AND Bloqueado >= 0
+            AND Reservado + Bloqueado <= Quantidade
+        )
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.Produto)
+BEGIN
+    INSERT INTO dbo.Produto (Nome, Quantidade) VALUES
+        ('Teclado', 50),
+        ('Mouse', 30),
+        ('Monitor', 10);
+END
+GO
+
+SELECT Id, Nome, Quantidade, Reservado, Bloqueado,
+       Quantidade - Reservado - Bloqueado AS Disponivel
+FROM dbo.Produto;
+GO
+```
+
+### Executando a aplicação
+
+```bash
+cd app
+dotnet restore
+dotnet run --project ControleEstoque.Api/ControleEstoque.Api.csproj
+```
+
+### Executando os testes
+
+```bash
+cd app
+dotnet test
+```
+
+## Casos de teste implementados
+
+Os testes unitários automatizados cobrem regras de domínio:
+
+- cálculo da quantidade disponível;
+- aceitação de quantidades positivas e rejeição de valores inválidos;
+- validação de saldo disponível, estoque indisponível e estoque insuficiente;
+- validação de liberação de reserva e bloqueio, incluindo saldo inexistente ou insuficiente.
+
+Os testes não executam operações reais contra o SQL Server; a integração com o banco deve ser validada em um ambiente com a instância configurada.
+
+## Uso de IA
+
+A utilização de IA neste projeto foi voltada principalmente a tarefas repetitivas e ao desenvolvimento do front-end da aplicação MVC.
+
+### Principais prompts e interações
+
+1. Prompt principal 1: “Quero que a operação no banco seja feita diretamente com ADO.NET, pois tenho familiaridade com essa estrutura.” Enviei como referência uma conexão que havia realizado em outro projeto.
+2. Prompt principal 2: “Monte as funções com base nas ações presentes na controller, personalize as conexões com base nelas e refatore para boas práticas.” Também compartilhei a conexão de referência.
+3. Prompt principal 3: “Os tratamentos de erro precisam especificar se o estoque está indisponível ou insuficiente; não pode haver uma resposta ambígua.”
+
+### Como a IA ajudou no processo
+
+- Apoio em tarefas repetitivas e na criação dos scripts de comunicação entre o front-end e as ações da controller.
+
+### Sugestões da IA que foram modificadas ou descartadas
+
+- A IA sugeriu uma arquitetura diferente para o case. Após estudar a proposta, optei por MVC por já ter familiaridade com esse padrão. O desenvolvimento começou com Entity Framework Core, mas migrei para ADO.NET direto. Também experimentei o Scalar para visualizar as requisições, mas preferi manter a interface MVC.
+
+### Limitações ou erros observados
+
+- O MVC oferece menos dinamismo que frameworks dedicados ao front-end, mas foi uma escolha adequada à familiaridade e ao escopo do projeto. As respostas de erro sugeridas inicialmente pela IA precisaram ser revistas para distinguir estoque indisponível de estoque insuficiente e oferecer mensagens mais claras.
+
+## Visão de engenharia: 5 aspectos prioritários
+
+1. Consistência do estoque  
+   Garantir que operações nunca deixem o sistema em estado inválido é o aspecto mais crítico do caso.
+
+2. Validação de regras de negócio  
+   A validação de entradas e a checagem de disponibilidade evitam erros silenciosos e inconsistências.
+
+3. Simplicidade de arquitetura  
+   Uma solução enxuta facilita manutenção, entendimento e implementação em tempo reduzido.
+
+4. Testabilidade  
+   Testes automatizados reduzem o risco de regressões e validam regras importantes do domínio.
+
+5. Observabilidade e evolução  
+   Mensagens claras de erro e estrutura bem organizada permitem evoluir para cenários mais complexos sem quebrar o sistema.
+
+## O que eu faria diferente em produção
+
+Em um ambiente real de produção, eu ampliaria a solução com:
+
+- autenticação e autorização;
+- auditoria de movimentações por usuário e data;
+- transações robustas e lock de concorrência;
+- histórico de reservas e bloqueios por pedido;
+- APIs mais desacopladas e serviços de domínio com testes unitários e de integração;
+- monitoramento, logs e alertas para falhas e inconsistências.
+
+## Observações finais
+
+Essa solução foi pensada para atender ao case prático com foco em clareza, consistência e qualidade. A decisão de manter a implementação direta e bem estruturada permite demonstrar domínio do problema sem adicionar complexidade desnecessária.
